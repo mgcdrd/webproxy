@@ -1,0 +1,11 @@
+---
+collections:
+  - name: mgcdrd.infrabase
+    type: git
+    source: https://gitlab.example.com/ansible/collections/infrabase.git
+    version: main
+
+  - name: mgcdrd.infrasvc
+    type: git
+    source: https://gitlab.example.com/ansible/collections/infrasvc.git
+    version: main

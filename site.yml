@@ -1,0 +1,32 @@
+---
+# ============================================================
+# webproxy — nginx + keepalived reverse proxy cluster
+#
+# Two-node active/passive nginx cluster with a floating VIP.
+# ssl_scripting (self-signed certs) is the default SSL provider —
+# switch nginx_ssl_provider to acme_sh once a real domain/DNS
+# record is ready for production certs.
+#
+# No nginx_server_blocks are defined by default — see
+# inventory/group_vars/all/main.yml and README.md for how to add
+# a real one once there's a backend to proxy to.
+#
+# Usage:
+#   ansible-galaxy collection install -r collections/requirements.yml
+#   ansible-playbook site.yml
+# ============================================================
+
+- name: webproxy - nginx
+  hosts: webproxy
+  become: true
+  gather_facts: true
+  roles:
+    - mgcdrd.infrasvc.nginx
+
+
+- name: webproxy - keepalived
+  hosts: webproxy
+  become: true
+  gather_facts: true
+  roles:
+    - mgcdrd.infrasvc.keepalived

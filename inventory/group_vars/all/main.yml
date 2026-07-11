@@ -1,0 +1,60 @@
+---
+
+# ===========================================================================
+# nginx
+# ===========================================================================
+
+# SSL: self-signed via ssl_scripting by default (safe out of the box, no
+# external dependency). Switch to acme_sh once a real domain/DNS record
+# exists for this cluster's VIP — see mgcdrd.infrabase.acme_sh's own
+# defaults/main.yml for the acme_sh_* vars to set alongside these.
+nginx_ssl_enable: true
+nginx_ssl_provider: ssl_scripting
+nginx_ssl_scripting:
+  base_dir: /etc/nginx/ssl_scripting
+
+# No server blocks defined yet — this deployment stands up the proxy
+# infrastructure (nginx + keepalived VIP + SSL), not any specific site.
+# Add real entries here once there's a backend to proxy to, e.g.:
+#
+# nginx_server_blocks:
+#   - name: example-app
+#     server_names:
+#       - app.example.com
+#     exclude_proxy_files: false
+#     proxy_files_path: /etc/nginx/conf.d/example-app.proxies   # deploy this file separately —
+#                                                                # the role doesn't manage proxy_pass content
+nginx_server_blocks: []
+
+nginx_http_block:
+  add_mime: true
+  force_80_redirect: true
+  hsts_max_age: 63072000
+  block_badagents: false
+  gzip_comp_lvl: 6
+  gzip_buffers: "4 8k"
+  client_body_buffer_size: 1k
+  client_header_buffer_size: 8k
+  large_client_header_buffers: "4 8k"
+  # default_443 gives nginx a valid catch-all cert to bind to on :443 so it
+  # doesn't fail to start before any real server_blocks are defined.
+  default_443:
+    enabled: true
+
+
+# ===========================================================================
+# keepalived
+# ===========================================================================
+
+keepalived_vip_for:
+  - webproxy
+
+keepalived_vrrp_instances:
+  - name: VI_WEBPROXY
+    master_node: proxy1.example.com
+    backup_nodes:
+      - proxy2.example.com
+    # Placeholder — must be a real, free IP on this cluster's network
+    # before first run. Update once real hostnames/network are known.
+    virt_ip:
+      - 192.168.1.50/24
