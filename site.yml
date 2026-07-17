@@ -16,7 +16,7 @@
 #   ansible-playbook site.yml
 # ============================================================
 
-- name: webproxy - nginx
+- name: Webproxy - nginx
   hosts: webproxy
   become: true
   gather_facts: true
@@ -24,7 +24,7 @@
     - mgcdrd.infrasvc.nginx
 
 
-- name: webproxy - keepalived
+- name: Webproxy - keepalived
   hosts: webproxy
   become: true
   gather_facts: true
