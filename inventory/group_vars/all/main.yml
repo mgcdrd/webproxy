@@ -41,6 +41,21 @@ nginx_http_block:
   default_443:
     enabled: true
 
+# Ships a copy of every server block's access/error log to the central
+# syslog server (syslog.lab.provenzawt.dev, local6 bucket) for long-term
+# retention — separate from and in addition to the existing nginx->Loki
+# path via grafana_alloy (dashboards/live search, short retention). Only
+# takes effect once nginx_server_blocks above is non-empty — shared_configs
+# are included per server block, and none exist yet.
+nginx_shared_configs:
+  logging:
+    - type:   access_log
+      path:   "syslog:server=unix:/dev/log,facility=local6,tag=nginx_access"
+      format: main
+    - type:   error_log
+      path:   "syslog:server=unix:/dev/log,facility=local6,tag=nginx_error"
+      format: warn
+
 
 # ===========================================================================
 # keepalived
