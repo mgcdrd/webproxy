@@ -61,16 +61,20 @@ run once before this deployment).
 
 ## SSL
 
-Defaults to self-signed certs via `ssl_scripting` — safe out of the box, no
-external dependency, but browsers will warn. For production certs, switch:
+`nginx_ssl_provider` picks which role `mgcdrd.infrasvc.nginx` calls to
+obtain certs — `ssl_scripting` or `acme_sh`. Both blocks are already in
+`inventory/group_vars/all/main.yml`; switching is commenting one out and
+uncommenting the other.
 
-```yaml
-nginx_ssl_provider: acme_sh
-```
-
-and set the `acme_sh_*` variables (see `mgcdrd.infrabase.acme_sh`'s own
-`defaults/main.yml`) alongside the vars already in this deployment's
-`group_vars/all/main.yml`.
+- **`ssl_scripting`** (default) — self-signed, safe out of the box, no
+  external dependency, but browsers will warn.
+- **`acme_sh`** — real DNS-validated certs via the lab's PowerDNS
+  (`dns_pdns` challenge; `dns_cf` also available). Needs `vault_acme_email`
+  and `vault_pdns_api_key` — copy
+  `inventory/group_vars/all/vault.yml.example` to `vault.yml` (gitignored).
+  Set a real domain in the commented `acme_sh_certs` entry once the VIP has
+  a DNS record. See `mgcdrd.infrabase.acme_sh`'s own `defaults/main.yml` for
+  the full `acme_sh_*` variable set.
 
 ---
 
