@@ -45,9 +45,7 @@ nginx_ssl_scripting:
 # vault_acme_email / vault_pdns_api_key: copy inventory/group_vars/all/vault.yml.example
 # to vault.yml (gitignored). dns_cf is also available instead of dns_pdns —
 # see mgcdrd.infrabase.acme_sh's own defaults/main.yml for the full acme_sh_*
-# variable set. acme_sh_flat_ssl_dir postdates this deployment's current
-# infrabase pin (v0.15.8) — bump collections/requirements.yml once a new
-# tag with it is cut, before switching providers.
+# variable set.
 
 # No server blocks defined yet — this deployment stands up the proxy
 # infrastructure (nginx + keepalived VIP + SSL), not any specific site.
