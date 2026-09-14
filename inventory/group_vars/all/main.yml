@@ -19,20 +19,35 @@ nginx_ssl_scripting:
 # --- acme_sh alternative (production certs via PowerDNS DNS-01) -----------
 # nginx_ssl_provider: acme_sh
 #
-# acme_sh_email:      "{{ vault_acme_email }}"
-# acme_sh_ca:         letsencrypt
-# acme_sh_pdns_url:   "http://dns.{{ domain }}:8081"
-# acme_sh_pdns_token: "{{ vault_pdns_api_key }}"
+# acme_sh_email:        "{{ vault_acme_email }}"
+# acme_sh_ca:            letsencrypt
+# acme_sh_pdns_url:      "http://dns.{{ domain }}:8081"
+# acme_sh_pdns_token:    "{{ vault_pdns_api_key }}"
+# # Flat <domain>.crt/.key symlinks (all domains, every cert) for the
+# # $ssl_server_name lookup in nginx_shared_configs.ssl below.
+# acme_sh_flat_ssl_dir:  /etc/nginx/ssl
+#
+# # One entry per FQDN this cluster proxies — add a new one whenever a new
+# # site is added, no nginx_shared_configs/role changes needed. A cert can
+# # cover multiple domains (SANs); every domain on it still gets its own
+# # <domain>.crt/.key symlink, so nginx_server_blocks can list either one.
 # acme_sh_certs:
 #   - domains:
-#       - "proxy.{{ domain }}"   # must resolve to keepalived_vrrp_instances[0].virt_ip
+#       - "app1.{{ domain }}"
+#       - "app2.{{ domain }}"    # SAN on the same cert as app1
+#     challenge: dns_pdns
+#     reload_cmd: "systemctl reload nginx"
+#   - domains:
+#       - "app3.{{ domain }}"    # separate cert, own domains list
 #     challenge: dns_pdns
 #     reload_cmd: "systemctl reload nginx"
 #
 # vault_acme_email / vault_pdns_api_key: copy inventory/group_vars/all/vault.yml.example
 # to vault.yml (gitignored). dns_cf is also available instead of dns_pdns —
 # see mgcdrd.infrabase.acme_sh's own defaults/main.yml for the full acme_sh_*
-# variable set.
+# variable set. acme_sh_flat_ssl_dir postdates this deployment's current
+# infrabase pin (v0.15.8) — bump collections/requirements.yml once a new
+# tag with it is cut, before switching providers.
 
 # No server blocks defined yet — this deployment stands up the proxy
 # infrastructure (nginx + keepalived VIP + SSL), not any specific site.
@@ -69,6 +84,13 @@ nginx_http_block:
 # takes effect once nginx_server_blocks above is non-empty — shared_configs
 # are included per server block, and none exist yet.
 nginx_shared_configs:
+  # ssl: (uncomment alongside the acme_sh block above) lets every server
+  # block share this one config while nginx resolves a different cert per
+  # connection off the SNI hostname — needs acme_sh_flat_ssl_dir set to the
+  # same directory so the <domain>.crt/.key files it references exist.
+  # ssl:
+  #   ssl_cert_path: '/etc/nginx/ssl/$ssl_server_name.crt'
+  #   ssl_key_path:  '/etc/nginx/ssl/$ssl_server_name.key'
   logging:
     - type:   access_log
       path:   "syslog:server=unix:/dev/log,facility=local6,tag=nginx_access"
