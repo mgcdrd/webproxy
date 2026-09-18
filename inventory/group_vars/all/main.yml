@@ -82,9 +82,38 @@ nginx_ssl_scripting:
 #     server_names:
 #       - app.example.com
 #     exclude_proxy_files: false
-#     proxy_files_path: /etc/nginx/conf.d/example-app.proxies   # deploy this file separately —
-#                                                                # the role doesn't manage proxy_pass content
+#     # proxy_files_path omitted — defaults to <nginx_proxy_files_dir>/example-app.proxies.
+#     # Ansible only creates an empty placeholder there; devops owns the
+#     # actual proxy_pass/location content from then on. See
+#     # mgcdrd.infrasvc.nginx's README, "Proxy files".
 nginx_server_blocks: []
+
+# Devops-owned proxy file split — required once any nginx_server_blocks
+# entry above has exclude_proxy_files: false. Set to the group the devops
+# service account (the one that logs in to manage these files) already
+# belongs to — this deployment doesn't provision that account.
+# nginx_proxy_files_group: svc-webproxy-devops
+#
+# nginx_proxy_files_dir defaults to /etc/nginx/conf.d/proxies — override
+# only if this cluster needs something else.
+
+# ===========================================================================
+# sudoers — devops proxy-files service account's nginx test/reload grant
+# ===========================================================================
+# Skipped entirely (see site.yml) unless sudoers_rules is set — nothing
+# below is required for this deployment to function without it.
+#
+# sudoers_rules_group: webproxy
+# sudoers_rules:
+#   - name: nginx-test-restart
+#     principals:
+#       - svc-webproxy-devops   # same account as nginx_proxy_files_group above
+#     commands:
+#       - /usr/sbin/nginx -t
+#       - /usr/sbin/nginx -s reload
+#
+# See mgcdrd.infrabase.sudoers's README, "Per-user/group sudo grants", for
+# the full schema (multiple principals/groups, pruning behavior, etc.).
 
 nginx_http_block:
   add_mime: true

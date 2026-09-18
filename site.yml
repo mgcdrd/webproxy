@@ -16,6 +16,19 @@
 #   ansible-playbook site.yml
 # ============================================================
 
+- name: Webproxy - sudoers
+  hosts: webproxy
+  become: true
+  gather_facts: false
+  roles:
+    # Skipped entirely with no sudoers_rules set (default) -- opt-in, for
+    # the devops proxy-files service account's nginx -t/-s reload grant.
+    # See inventory/group_vars/all/main.yml and mgcdrd.infrabase.sudoers's
+    # README, "Per-user/group sudo grants".
+    - role: mgcdrd.infrabase.sudoers
+      when: sudoers_rules | default([]) | length > 0
+
+
 - name: Webproxy - nginx
   hosts: webproxy
   become: true
