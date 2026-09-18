@@ -58,6 +58,10 @@ nginx_ssl_scripting:
 # node and fan the result out to the rest via Vault — see
 # mgcdrd.infrabase.acme_sh's README "ISSUER + VAULT FAN-OUT" section.
 #
+# Requires acme_sh_flat_ssl_dir set (uncommented above) — every non-issuer
+# node deploys its Vault-pulled cert/key there, same as a local
+# acme_sh_flat_ssl_dir deployment would.
+#
 # acme_sh_issuer_host: proxy1.example.com   # literal hostname — never
 #                                            # groups.webproxy | first, since
 #                                            # inventory reordering must
@@ -66,6 +70,8 @@ nginx_ssl_scripting:
 # acme_sh_vault_kv_mount: "{{ vault_kv_infra_mount }}"
 # acme_sh_vault_kv_path_prefix: "{{ vault_kv_env }}/webproxy/certs"
 # acme_sh_vault_deploy_reload_cmd: "systemctl reload nginx"
+# # acme_sh_vault_addr defaults to vault_addr (inventory-common) — no need
+# # to set it here unless this cluster talks to a different Vault.
 
 # No server blocks defined yet — this deployment stands up the proxy
 # infrastructure (nginx + keepalived VIP + SSL), not any specific site.
