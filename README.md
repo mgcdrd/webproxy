@@ -24,6 +24,32 @@ supply at `proxy_files_path`, which this role does not manage.
 
 ---
 
+## Infra/devops split (proxy files)
+
+Deliberate boundary: this deployment (infra) owns the server block shell,
+certs, and hardening; a devops service account owns each site's actual
+`proxy_pass`/`location` content. `mgcdrd.infrasvc.nginx` only ensures
+`nginx_proxy_files_dir` (`/etc/nginx/conf.d/proxies` by default — a
+dedicated directory, not the rest of `/etc/nginx/conf.d/`) and an empty
+placeholder file exist per server block; it never manages or overwrites
+their content. Requires `nginx_proxy_files_group` set to the group that
+account already belongs to (this deployment doesn't provision the account
+itself). See `mgcdrd.infrasvc.nginx`'s README, "Proxy files", for the full
+ownership/permission model.
+
+The sudo rights that account needs to test/restart nginx after editing a
+proxy file are wired too (`mgcdrd.infrabase.sudoers`, skipped unless
+`sudoers_rules` is set — see `inventory/group_vars/all/main.yml`'s
+commented example, same account as `nginx_proxy_files_group` above).
+
+**Not yet built:** propagating a proxy file edit made on one node out to
+the rest of the cluster — pending a design decision with the devops team
+(peer-to-peer push vs. a Vault-mediated pattern like the acme_sh cert
+fan-out). Until that lands, a devops edit on one node only takes effect
+on that one node.
+
+---
+
 ## Prerequisites
 
 - Two Rocky 9/10 or Debian 12/13 VMs, reachable via SSH with `become: true`
