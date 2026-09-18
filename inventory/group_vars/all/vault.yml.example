@@ -12,3 +12,9 @@
 
 vault_acme_email:   "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/acme', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.email }}"
 vault_pdns_api_key: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/pdns', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.api_key }}"
+
+# acme_sh_vault_kv_enabled's AppRole (role_id/secret_id at
+# /etc/vault/acme-sh-role-id and -secret-id on the issuer host, read by
+# acme-sh-vault-push.sh) is pre-positioned by the identity build, not
+# resolved through a lookup in this file — don't mistake its absence here
+# for a missing entry.

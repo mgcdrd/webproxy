@@ -31,21 +31,41 @@ nginx_ssl_scripting:
 # # site is added, no nginx_shared_configs/role changes needed. A cert can
 # # cover multiple domains (SANs); every domain on it still gets its own
 # # <domain>.crt/.key symlink, so nginx_server_blocks can list either one.
+# #
+# # reload_cmd pushes to Vault first (acme-sh-vault-push.sh, deployed by
+# # acme_sh on the issuer only) so a cron-triggered renewal updates Vault
+# # even when no Ansible run is involved — see acme_sh_vault_kv_enabled below.
 # acme_sh_certs:
 #   - domains:
 #       - "app1.{{ domain }}"
 #       - "app2.{{ domain }}"    # SAN on the same cert as app1
 #     challenge: dns_pdns
-#     reload_cmd: "systemctl reload nginx"
+#     reload_cmd: "/usr/local/sbin/acme-sh-vault-push.sh app1.{{ domain }} && systemctl reload nginx"
 #   - domains:
 #       - "app3.{{ domain }}"    # separate cert, own domains list
 #     challenge: dns_pdns
-#     reload_cmd: "systemctl reload nginx"
+#     reload_cmd: "/usr/local/sbin/acme-sh-vault-push.sh app3.{{ domain }} && systemctl reload nginx"
 #
 # vault_acme_email / vault_pdns_api_key: copy inventory/group_vars/all/vault.yml.example
 # to vault.yml (gitignored). dns_cf is also available instead of dns_pdns —
 # see mgcdrd.infrabase.acme_sh's own defaults/main.yml for the full acme_sh_*
 # variable set.
+#
+# --- issuer + Vault fan-out ------------------------------------------------
+# With 2+ webproxy nodes each issuing the same domain set independently,
+# every renewal cycle burns against Let's Encrypt's 5-duplicate-certs/week
+# limit once per node instead of once total. Centralize issuance on one
+# node and fan the result out to the rest via Vault — see
+# mgcdrd.infrabase.acme_sh's README "ISSUER + VAULT FAN-OUT" section.
+#
+# acme_sh_issuer_host: proxy1.example.com   # literal hostname — never
+#                                            # groups.webproxy | first, since
+#                                            # inventory reordering must
+#                                            # never silently move who issues
+# acme_sh_vault_kv_enabled: true
+# acme_sh_vault_kv_mount: "{{ vault_kv_infra_mount }}"
+# acme_sh_vault_kv_path_prefix: "{{ vault_kv_env }}/webproxy/certs"
+# acme_sh_vault_deploy_reload_cmd: "systemctl reload nginx"
 
 # No server blocks defined yet — this deployment stands up the proxy
 # infrastructure (nginx + keepalived VIP + SSL), not any specific site.

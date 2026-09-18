@@ -76,6 +76,24 @@ uncommenting the other.
   a DNS record. See `mgcdrd.infrabase.acme_sh`'s own `defaults/main.yml` for
   the full `acme_sh_*` variable set.
 
+### Certificate renewal architecture (with `acme_sh`)
+
+With 2+ nodes each independently issuing the same domain set, every
+renewal cycle burns against Let's Encrypt's 5-duplicate-certs/week limit
+once per node instead of once total. The commented `acme_sh` block also
+sets `acme_sh_issuer_host` (pinned to one literal proxy hostname) and
+`acme_sh_vault_kv_enabled: true` so only that one node issues; every other
+node pulls the issued cert from Vault instead — see
+`mgcdrd.infrabase.acme_sh`'s README, "Issuer + Vault fan-out", for the full
+mechanism. This decouples issuance from serving entirely (DNS-01 has no
+dependency on which node holds the VIP), so the keepalived VIP moving
+between nodes never affects which node renews.
+
+This alone does not make the Vault-pull side self-healing on its own — an
+AWX schedule running `site.yml` periodically against `webproxy` is what
+turns "pulls on the next run" into actual convergence, and isn't set up by
+this deployment.
+
 ---
 
 ## Client/customer delivery
