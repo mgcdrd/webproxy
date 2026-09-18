@@ -3,12 +3,12 @@ collections:
   - name: mgcdrd.infrabase
     source: https://github.com/mgcdrd/infrabase.git
     type: git
-    version: v0.19.1
+    version: v0.20.0
 
   - name: mgcdrd.infrasvc
     source: https://github.com/mgcdrd/infrasvc.git
     type: git
-    version: v0.13.0
+    version: v0.14.0
 
   - name: community.hashi_vault
     version: ">=6.0.0"
