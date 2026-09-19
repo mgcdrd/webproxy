@@ -26,11 +26,21 @@ nginx_ssl_scripting:
 # # Flat <domain>.crt/.key symlinks (all domains, every cert) for the
 # # $ssl_server_name lookup in nginx_shared_configs.ssl below.
 # acme_sh_flat_ssl_dir:  /etc/nginx/ssl
+# # nginx resolves $ssl_server_name-based cert paths in the WORKER process,
+# # not the privileged master — root:root (this role's default) leaves the
+# # worker unable to read its own cert/key, failing TLS handshakes silently
+# # (nginx -t never catches this — it can't validate a variable-based path
+# # ahead of time). Must be the nginx worker's own user/group:
+# acme_sh_flat_ssl_owner: "{{ nginx_process_user }}"
+# acme_sh_flat_ssl_group: "{{ nginx_process_group | default(nginx_process_user) }}"
 #
 # # One entry per FQDN this cluster proxies — add a new one whenever a new
 # # site is added, no nginx_shared_configs/role changes needed. A cert can
 # # cover multiple domains (SANs); every domain on it still gets its own
 # # <domain>.crt/.key symlink, so nginx_server_blocks can list either one.
+# # acme_sh_certs' domains here are independent of nginx_server_blocks[].name
+# # below (that's only a .conf filename label) — what has to match is a
+# # server block's server_names against a cert's domains, by hand.
 # #
 # # reload_cmd pushes to Vault first (acme-sh-vault-push.sh, deployed by
 # # acme_sh on the issuer only) so a cron-triggered renewal updates Vault
