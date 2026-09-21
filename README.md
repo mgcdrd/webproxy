@@ -42,11 +42,17 @@ proxy file are wired too (`mgcdrd.infrabase.sudoers`, skipped unless
 `sudoers_rules` is set — see `inventory/group_vars/all/main.yml`'s
 commented example, same account as `nginx_proxy_files_group` above).
 
-**Not yet built:** propagating a proxy file edit made on one node out to
-the rest of the cluster — pending a design decision with the devops team
-(peer-to-peer push vs. a Vault-mediated pattern like the acme_sh cert
-fan-out). Until that lands, a devops edit on one node only takes effect
-on that one node.
+Proxy sync is an opt-in way to propagate edits to every node. Instead of
+editing on one node, the devops team's CI publishes each site's proxy file to
+a local S3-compatible bucket. A systemd timer on every node (every 5 minutes
+by default, set with `nginx_proxy_sync_interval`) pulls the files, runs
+`nginx -t`, and reloads, rolling a file back if it fails the test. Nobody
+edits on the node, so the sudoers grant and `nginx_proxy_files_group` above
+aren't needed. The commented example in `inventory/group_vars/all/main.yml`
+shows the variables. The `mgcdrd.infrasvc.nginx` README, under "Proxy sync",
+covers the bucket contract, the prerequisites (a bucket, a read-only
+credential in Vault, and AppRole files on each node) and the limitations.
+With sync off, a devops edit on one node only takes effect on that node.
 
 ---
 

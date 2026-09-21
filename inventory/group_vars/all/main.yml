@@ -107,8 +107,31 @@ nginx_server_blocks: []
 # nginx_proxy_files_dir defaults to /etc/nginx/conf.d/proxies — override
 # only if this cluster needs something else.
 
+# ---------------------------------------------------------------------------
+# Proxy sync (opt-in) — nodes pull the proxy files from S3 instead of anyone
+# editing them on-node. The devops team's CI publishes one object per server
+# block, <prefix>/<server block name>.proxies; every node's timer pulls,
+# runs nginx -t, and reloads (rolling back on failure). Replaces both the
+# on-node editing above and the sudoers grant below — with this on,
+# nginx_proxy_files_group isn't needed and the proxy dir is root-owned.
+# See mgcdrd.infrasvc.nginx's README, "Proxy sync", for the full contract.
+#
+# Prerequisites (not created here): the bucket + a read-only credential,
+# that credential in Vault at <vault_kv_infra_mount>/<vault_kv_env>/webproxy/s3
+# (access_key, secret_key), and the AppRole role_id/secret_id files on every
+# node at /etc/vault/webproxy-s3-role-id and -secret-id (pre-positioned by
+# the identity build, same as acme_sh) — so no entry in vault.yml.example.
+#
+# nginx_proxy_sync_enabled: true
+# nginx_proxy_sync_interval: 5min
+# nginx_proxy_sync_s3_endpoint: https://s3.example.com:9000
+# nginx_proxy_sync_s3_bucket: proxy
+# nginx_proxy_sync_s3_prefix: webproxy
+# # nginx_proxy_sync_s3_ca_file: /etc/pki/ca-trust/source/anchors/lab-ca.pem
+
 # ===========================================================================
 # sudoers — devops proxy-files service account's nginx test/reload grant
+# (not needed once proxy sync above is enabled — nobody edits on-node)
 # ===========================================================================
 # Skipped entirely (see site.yml) unless sudoers_rules is set — nothing
 # below is required for this deployment to function without it.
