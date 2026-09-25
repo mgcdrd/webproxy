@@ -9,12 +9,26 @@
 #
 # No nginx_server_blocks are defined by default — see
 # inventory/group_vars/all/main.yml and README.md for how to add
-# a real one once there's a backend to proxy to.
+# a real one (in the instance's group_vars) once there's a backend to
+# proxy to.
 #
 # Usage:
 #   ansible-galaxy collection install -r collections/requirements.yml
-#   ansible-playbook site.yml
+#   DEPLOY_INSTANCE=<name> ansible-playbook site.yml
 # ============================================================
+
+# Fails unless exactly one webproxy instance is loaded (set
+# DEPLOY_INSTANCE=<name>, see ansible.cfg). Tagged always so
+# --tags runs still get checked.
+- name: Webproxy - Instance guard
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: [always]
+  roles:
+    - role: mgcdrd.infrabase.instance_guard
+      vars:
+        instance_guard_group: webproxy
 
 - name: Webproxy - sudoers
   hosts: webproxy

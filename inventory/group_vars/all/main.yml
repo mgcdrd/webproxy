@@ -72,10 +72,8 @@ nginx_ssl_scripting:
 # node deploys its Vault-pulled cert/key there, same as a local
 # acme_sh_flat_ssl_dir deployment would.
 #
-# acme_sh_issuer_host: proxy1.example.com   # literal hostname — never
-#                                            # groups.webproxy | first, since
-#                                            # inventory reordering must
-#                                            # never silently move who issues
+# acme_sh_issuer_host: set in the instance's group_vars/webproxy_<name>/
+#                       (literal hostname, per cluster)
 # acme_sh_vault_kv_enabled: true
 # acme_sh_vault_kv_mount: "{{ vault_kv_infra_mount }}"
 # acme_sh_vault_kv_path_prefix: "{{ vault_kv_env }}/webproxy/certs"
@@ -85,7 +83,8 @@ nginx_ssl_scripting:
 
 # No server blocks defined yet — this deployment stands up the proxy
 # infrastructure (nginx + keepalived VIP + SSL), not any specific site.
-# Add real entries here once there's a backend to proxy to, e.g.:
+# Add real entries to nginx_server_blocks in the instance's
+# group_vars/webproxy_<name>/ once there's a backend to proxy to, e.g.:
 #
 # nginx_server_blocks:
 #   - name: example-app
@@ -96,8 +95,6 @@ nginx_ssl_scripting:
 #     # Ansible only creates an empty placeholder there; devops owns the
 #     # actual proxy_pass/location content from then on. See
 #     # mgcdrd.infrasvc.nginx's README, "Proxy files".
-nginx_server_blocks: []
-
 # Devops-owned proxy file split — required once any nginx_server_blocks
 # entry above has exclude_proxy_files: false. Set to the group the devops
 # service account (the one that logs in to manage these files) already
@@ -193,12 +190,5 @@ nginx_shared_configs:
 keepalived_vip_for:
   - webproxy
 
-keepalived_vrrp_instances:
-  - name: VI_WEBPROXY
-    master_node: proxy1.example.com
-    backup_nodes:
-      - proxy2.example.com
-    # Placeholder — must be a real, free IP on this cluster's network
-    # before first run. Update once real hostnames/network are known.
-    virt_ip:
-      - 192.168.1.50/24
+# keepalived_vrrp_instances (master/backup nodes, VIP) is per cluster — it
+# lives in the instance's group_vars/webproxy_<name>/, not here.

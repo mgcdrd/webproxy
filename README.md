@@ -59,11 +59,12 @@ With sync off, a devops edit on one node only takes effect on that node.
 ## Prerequisites
 
 - Two Rocky 9/10 or Debian 12/13 VMs, reachable via SSH with `become: true`
-- Hosts added to the `webproxy` group in `../../inventory-common/hosts.yml`
-  — currently `proxy1.example.com` / `proxy2.example.com` placeholders,
-  replace with real FQDNs
-- A real, free VIP address set in `keepalived_vrrp_instances[0].virt_ip` —
-  currently a placeholder (`192.168.1.50/24`)
+- An instance directory at `../../inventory-common/instances/webproxy/<name>/`
+  (see Inventory below) — currently `proxy1.example.com` /
+  `proxy2.example.com` placeholders, replace with real FQDNs
+- A real, free VIP address set in the instance's
+  `keepalived_vrrp_instances[0].virt_ip` — currently a placeholder
+  (`192.168.1.50/24`)
 - `../../inventory-common` cloned as a sibling of `deployments/` (see that
   repo's README)
 - Collections installed:
@@ -71,10 +72,43 @@ With sync off, a devops edit on one node only takes effect on that node.
 
 ---
 
+## Inventory
+
+Hosts and cluster-specific vars live in
+`../../inventory-common/instances/webproxy/<name>/`, one directory per proxy
+pair, not in this deployment (see that repo's README, "Multiple instances").
+Pick the pair with `DEPLOY_INSTANCE`; `ansible.cfg` builds the inventory path
+from it. An unset or misspelled name fails the first play (`instance_guard`)
+instead of silently matching no hosts. Load one instance per run — never two.
+
+An instance's `hosts.yml` lists each node in `webproxy_<name>` and again in
+`webproxy`, the role group the plays target:
+
+```yaml
+all:
+  children:
+    webproxy_example:
+      hosts:
+        proxy1.example.com:
+        proxy2.example.com:
+    webproxy:
+      hosts:
+        proxy1.example.com:
+        proxy2.example.com:
+```
+
+Cluster-specific vars (`keepalived_vrrp_instances`, `nginx_server_blocks`,
+`acme_sh_issuer_host`) live in that instance's `group_vars/webproxy_<name>/`.
+Everything the same for every cluster (SSL provider, HTTP block, logging)
+stays in this repo's `inventory/group_vars/all/main.yml`. Requires
+`mgcdrd.infrabase` with the `instance_guard` role (v0.21.0 or later).
+
+---
+
 ## Usage
 
 ```bash
-ansible-playbook site.yml
+DEPLOY_INSTANCE=lab ansible-playbook site.yml
 ```
 
 No tags — both phases (nginx, keepalived) run every time. Both roles are
@@ -130,7 +164,7 @@ this deployment.
 
 ## Client/customer delivery
 
-Portable as-is: point `ansible.cfg`'s inventory path at the customer's
-`inventory-<client>` repo instead of `inventory-common`, add their real
-`webproxy` hosts/VIP, and set real `nginx_server_blocks` for whatever
-they're actually proxying.
+Portable as-is: point `ansible.cfg`'s inventory paths at the customer's
+`inventory-<client>` repo instead of `inventory-common`, add an
+`instances/webproxy/<name>/` directory there with their real hosts/VIP, and
+set real `nginx_server_blocks` for whatever they're actually proxying.
