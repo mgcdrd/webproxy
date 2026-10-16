@@ -23,21 +23,18 @@ nginx_ssl_scripting:
 # acme_sh_ca:            letsencrypt
 # acme_sh_pdns_url:      "http://dns.{{ domain }}:8081"
 # acme_sh_pdns_token:    "{{ vault_pdns_api_key }}"
-# # Flat <domain>.crt/.key symlinks (all domains, every cert) for the
-# # $ssl_server_name lookup in nginx_shared_configs.ssl below.
+# # Flat <domain>.crt/.key files (every cert), where each server block's
+# # static ssl_certificate points (nginx_ssl_cert_dir, /etc/nginx/ssl).
 # acme_sh_flat_ssl_dir:  /etc/nginx/ssl
-# # nginx resolves $ssl_server_name-based cert paths in the WORKER process,
-# # not the privileged master — root:root (this role's default) leaves the
-# # worker unable to read its own cert/key, failing TLS handshakes silently
-# # (nginx -t never catches this — it can't validate a variable-based path
-# # ahead of time). Must be the nginx worker's own user/group:
-# acme_sh_flat_ssl_owner: "{{ nginx_process_user }}"
-# acme_sh_flat_ssl_group: "{{ nginx_process_group | default(nginx_process_user) }}"
+# # Static cert paths are read by the root master process, so acme_sh's
+# # default root:root owner is correct; no owner/group override is needed.
+# # The issuer's reload_cmd must reload nginx (static certs are only re-read
+# # on reload) — the reload_cmd entries below already do.
 #
 # # One entry per FQDN this cluster proxies — add a new one whenever a new
 # # site is added, no nginx_shared_configs/role changes needed. A cert can
-# # cover multiple domains (SANs); every domain on it still gets its own
-# # <domain>.crt/.key symlink, so nginx_server_blocks can list either one.
+# # cover multiple domains (SANs); list all of them in the server block's
+# # server_names and it uses the primary (first) domain's cert files.
 # # acme_sh_certs' domains here are independent of nginx_server_blocks[].name
 # # below (that's only a .conf filename label) — what has to match is a
 # # server block's server_names against a cert's domains, by hand.
@@ -149,16 +146,20 @@ nginx_http_block:
   add_mime: true
   force_80_redirect: true
   hsts_max_age: 63072000
-  block_badagents: false
+  # Public-tier user-agent blocking (scanners, scrapers, empty UA); list in the
+  # nginx role's nginx_badagent_list. Internal/trusted clients are exempt.
+  block_badagents: true
   gzip_comp_lvl: 6
   gzip_buffers: "4 8k"
-  client_body_buffer_size: 1k
+  client_body_buffer_size: 64k
   client_header_buffer_size: 8k
   large_client_header_buffers: "4 8k"
-  # default_443 gives nginx a valid catch-all cert to bind to on :443 so it
-  # doesn't fail to start before any real server_blocks are defined.
+  # default_443 with reject_handshake refuses the TLS handshake for unknown or
+  # missing SNI (including requests straight to the IP): no certificate is
+  # served, and nginx starts without a cert before any server block exists.
   default_443:
     enabled: true
+    reject_handshake: true
 
 # Ships a copy of every server block's access/error log to the central
 # syslog server (syslog.lab.provenzawt.dev, local6 bucket) for long-term
@@ -167,13 +168,12 @@ nginx_http_block:
 # takes effect once nginx_server_blocks above is non-empty — shared_configs
 # are included per server block, and none exist yet.
 nginx_shared_configs:
-  # ssl: (uncomment alongside the acme_sh block above) lets every server
-  # block share this one config while nginx resolves a different cert per
-  # connection off the SNI hostname — needs acme_sh_flat_ssl_dir set to the
-  # same directory so the <domain>.crt/.key files it references exist.
-  # ssl:
-  #   ssl_cert_path: '/etc/nginx/ssl/$ssl_server_name.crt'
-  #   ssl_key_path:  '/etc/nginx/ssl/$ssl_server_name.key'
+  # TLS hardening shared by every server block. The certificate itself is set
+  # per server block (static <nginx_ssl_cert_dir>/<name>.crt|.key), so there is
+  # no ssl_cert_path here.
+  ssl:
+    ssl_protos:  "TLSv1.2 TLSv1.3"
+    ssl_ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305"
   logging:
     - type:   access_log
       path:   "syslog:server=unix:/dev/log,facility=local6,tag=nginx_access"
@@ -181,6 +181,36 @@ nginx_shared_configs:
     - type:   error_log
       path:   "syslog:server=unix:/dev/log,facility=local6,tag=nginx_error"
       format: warn
+
+
+# ===========================================================================
+# Hardening: client tiers, rate limits, GeoIP2 (see the nginx role README)
+# ===========================================================================
+# Defaults already apply: internal = RFC1918 (never limited, geoblocked or
+# UA-blocked), trusted = none, public = everyone else (tight limits), and
+# X-Forwarded-For is set from the connecting address. Per cluster, override in
+# the instance's group_vars/webproxy_<name>/:
+#
+# nginx_trusted_cidrs: [203.0.113.0/27]      # rate limited, but high ceilings
+# nginx_real_ip_from: [192.0.2.10]           # ONLY if a load balancer/CDN is in front
+# nginx_rate_limits: {...}                   # see the nginx role README
+#
+# GeoIP2 + geoblocking. Needs the nginx-mod-http-geoip2 package in the host's
+# repos (the Foreman content view built from geoip2-rpm; Debian uses the
+# distro's libnginx-mod-http-geoip2). The MaxMind license key comes from Vault.
+nginx_geoip2_enabled: false
+# nginx_geoblock_countries: [CN, RU, KP, IR, BY, SY, CU]   # public tier only
+# nginx_geoip2_account_id:  "{{ vault_maxmind_account_id }}"
+# nginx_geoip2_license_key: "{{ vault_maxmind_license_key }}"
+
+# fail2ban (mgcdrd.infrabase.fail2ban): bans clients that hit the rate limits,
+# probe for scanner paths, or burst 400/403/405/444 responses. Opt-in; the play
+# in site.yml is skipped unless this is true. Add the trusted external ranges to
+# fail2ban_ignoreip (and nginx_real_ip_from if a balancer is in front).
+fail2ban_enabled: false
+fail2ban_presets: [nginx]
+fail2ban_recidive_enabled: true
+# fail2ban_ignoreip: [127.0.0.1/8, "::1", 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 203.0.113.0/27]
 
 
 # ===========================================================================

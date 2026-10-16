@@ -17,19 +17,6 @@
 #   DEPLOY_INSTANCE=<name> ansible-playbook site.yml
 # ============================================================
 
-# Fails unless exactly one webproxy instance is loaded (set
-# DEPLOY_INSTANCE=<name>, see ansible.cfg). Tagged always so
-# --tags runs still get checked.
-- name: Webproxy - Instance guard
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  tags: [always]
-  roles:
-    - role: mgcdrd.infrabase.instance_guard
-      vars:
-        instance_guard_group: webproxy
-
 - name: Webproxy - sudoers
   hosts: webproxy
   become: true
@@ -49,6 +36,17 @@
   gather_facts: true
   roles:
     - mgcdrd.infrasvc.nginx
+
+
+# Opt-in (fail2ban_enabled: true): bans abusive clients from the nginx logs.
+# After nginx so the per-server-block logs it reads already exist.
+- name: Webproxy - fail2ban
+  hosts: webproxy
+  become: true
+  gather_facts: true
+  roles:
+    - role: mgcdrd.infrabase.fail2ban
+      when: fail2ban_enabled | default(false)
 
 
 - name: Webproxy - keepalived

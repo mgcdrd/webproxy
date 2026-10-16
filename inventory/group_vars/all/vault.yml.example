@@ -18,3 +18,9 @@ vault_pdns_api_key: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_e
 # acme-sh-vault-push.sh) is pre-positioned by the identity build, not
 # resolved through a lookup in this file — don't mistake its absence here
 # for a missing entry.
+
+# GeoIP2 database download (geoipupdate), only when nginx_geoip2_enabled is
+# true and nginx_geoip2_account_id/license_key are set. KV path:
+# <vault_kv_infra_mount>/<vault_kv_env>/maxmind with fields account_id and license_key.
+vault_maxmind_account_id:  "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/maxmind', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.account_id }}"
+vault_maxmind_license_key: "{{ lookup('community.hashi_vault.vault_kv2_get', vault_kv_env + '/maxmind', engine_mount_point=vault_kv_infra_mount, url=vault_addr).secret.license_key }}"
