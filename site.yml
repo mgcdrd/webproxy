@@ -8,13 +8,12 @@
 # record is ready for production certs.
 #
 # No nginx_server_blocks are defined by default — see
-# inventory/group_vars/all/main.yml and README.md for how to add
-# a real one (in the instance's group_vars) once there's a backend to
-# proxy to.
+# the inventory's group_vars/webproxy/webproxy.yml and README.md for how to
+# add a real one once there's a backend to proxy to.
 #
 # Usage:
 #   ansible-galaxy collection install -r collections/requirements.yml
-#   DEPLOY_INSTANCE=<name> ansible-playbook site.yml
+#   ansible-playbook site.yml
 # ============================================================
 
 - name: Webproxy - sudoers
@@ -24,7 +23,7 @@
   roles:
     # Skipped entirely with no sudoers_rules set (default) -- opt-in, for
     # the devops proxy-files service account's nginx -t/-s reload grant.
-    # See inventory/group_vars/all/main.yml and mgcdrd.infrabase.sudoers's
+    # See group_vars/webproxy/webproxy.yml and mgcdrd.infrabase.sudoers's
     # README, "Per-user/group sudo grants".
     - role: mgcdrd.infrabase.sudoers
       when: sudoers_rules | default([]) | length > 0
